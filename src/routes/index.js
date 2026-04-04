@@ -1,17 +1,33 @@
-import { Router } from "express";
+import { Router } from 'express';
+import { authMiddleware as authenticateToken } from '../middleware/auth.js';
 
+import customerAuthRoutes from './customer/auth.routes.js';
+import customerHomeRoutes from './customer/home.routes.js';
+import customerServiceCategoryRoutes from './customer/serviceCategory.routes.js';
 
-import { authMiddleware as authenticateToken, authorize as requireRole } from '../middleware/auth.js';
-import customerAuthRoutes from './customerAuth.routes.js';
-import adminAuthRoutes from './adminAuth.routes.js';
+import adminAuthRoutes from './admin/auth.routes.js';
+import {
+  serviceCategoryAdminRouter,
+  serviceSubcategoryAdminRouter,
+} from './admin/serviceCategory.routes.js';
+
+import providerAuthRoutes from './provider/auth.routes.js';
+import providerServiceRoutes from './provider/service.routes.js';
+import providerDashboardRoutes from './provider/dashboard.routes.js';
 
 const router = Router();
 
 router.use('/auth/customer', customerAuthRoutes);
+router.use('/customer', customerHomeRoutes);
 router.use('/auth/admin', adminAuthRoutes);
+router.use('/auth/provider', providerAuthRoutes);
+router.use('/provider/services', providerServiceRoutes);
+router.use('/provider/dashboard', providerDashboardRoutes);
 
+router.use('/service-categories', customerServiceCategoryRoutes);
+router.use('/admin/service-categories', serviceCategoryAdminRouter);
+router.use('/admin/service-subcategories', serviceSubcategoryAdminRouter);
 
-// FCM Token Update (auth ke baad)
 router.post('/update-fcm-token', authenticateToken, async (req, res) => {
   try {
     const { fcmToken } = req.body;
@@ -19,40 +35,31 @@ router.post('/update-fcm-token', authenticateToken, async (req, res) => {
     if (!fcmToken) {
       return res.status(400).json({
         success: false,
-        message: 'FCM token required'
+        message: 'FCM token required',
       });
     }
 
-    // await User.findByIdAndUpdate(req.user._id, { fcmToken });
-
-    // console.log('✅ FCM token updated for user:', req.user._id);
-
     res.json({
       success: true,
-      message: 'FCM token updated successfully'
+      message: 'FCM token updated successfully',
     });
-
   } catch (error) {
     console.error('❌ FCM token update error:', error);
     res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message,
     });
   }
 });
-
 
 router.get('/', (req, res) => {
   res.send('Hello World');
 });
 router.get('/test', (req, res) => {
   res.send({
-    message: "Platform detection working!",
-    platform: "kaj-now",
+    message: 'Platform detection working!',
+    platform: 'kaj-now',
   });
 });
-
-
-
 
 export default router;

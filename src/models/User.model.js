@@ -22,9 +22,6 @@ const userSchema = new mongoose.Schema({
   otpExpiry: { type: Date },
   otpAttempts: { type: Number, default: 0 },
   lastOTPSent: { type: Date },
-
-  isProfileComplete: { type: Boolean, default: false },
-  isDocumentComplete: { type: Boolean, default: false },
   profileLastUpdated: { type: Date },
   fcmToken: {
     type: String,

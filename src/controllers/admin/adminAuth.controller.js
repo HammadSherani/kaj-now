@@ -1,9 +1,9 @@
-import bcrypt from 'bcryptjs';
-import User from '../models/User.model.js';
-import config from '../config/index.js';
-import { sendOtpEmail } from '../utils/emailService.js';
-import { signToken } from '../utils/jwt.js';
-import { generateNumericOtp } from '../utils/otp.js';
+﻿import bcrypt from 'bcryptjs';
+import User from '../../models/User.model.js';
+import config from '../../config/index.js';
+import { sendOtpEmail } from '../../utils/emailService.js';
+import { signToken } from '../../utils/jwt.js';
+import { generateNumericOtp } from '../../utils/otp.js';
 
 const SALT_ROUNDS = 10;
 const OTP_TTL_MS = 10 * 60 * 1000;
@@ -296,3 +296,4 @@ export async function me(req, res) {
     return res.status(500).json({ success: false, message: err.message || 'Request failed.' });
   }
 }
+

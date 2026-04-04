@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import * as customerAuth from '../controllers/customerAuth.controller.js';
-import { authMiddleware as authenticateToken, authorize as requireRole } from '../middleware/auth.js';
+import * as customerAuth from '../../controllers/customer/customerAuth.controller.js';
+import { authMiddleware as authenticateToken, authorize as requireRole } from '../../middleware/auth.js';
 
 const router = Router();
 

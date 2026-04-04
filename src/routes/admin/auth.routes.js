@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import * as adminAuth from '../controllers/adminAuth.controller.js';
-import { authMiddleware as authenticateToken, authorize as requireRole } from '../middleware/auth.js';
+import * as adminAuth from '../../controllers/admin/adminAuth.controller.js';
+import { authMiddleware as authenticateToken, authorize as requireRole } from '../../middleware/auth.js';
 
 const router = Router();
 
