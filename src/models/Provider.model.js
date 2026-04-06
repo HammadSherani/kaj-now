@@ -10,16 +10,14 @@ const providerSchema = new mongoose.Schema(
     state: { type: String, trim: true, default: '' },
     country: { type: String, trim: true, default: '' },
 
-    /** GeoJSON Point: coordinates are [longitude, latitude]. Use lat/lng in API; controller maps them. */
+    /** GeoJSON Point: coordinates are [longitude, latitude]. Omit until lat/lng are set (see updateProfile). */
     location: {
       type: {
         type: String,
         enum: ['Point'],
-        default: 'Point',
       },
       coordinates: {
         type: [Number],
-        default: undefined,
       },
     },
 
@@ -41,7 +39,7 @@ const providerSchema = new mongoose.Schema(
       },
     ],
 
-    /** Document image/file URLs (upload client-side, then send URLs here). */
+    /** Document URLs: external or from this API (/uploads/...) after Multer save on PATCH profile. */
     facePhoto: { type: String, trim: true, default: '' },
     idCardFront: { type: String, trim: true, default: '' },
     idCardBack: { type: String, trim: true, default: '' },
@@ -55,6 +53,14 @@ const providerSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+/** Avoid persisting invalid GeoJSON (2dsphere rejects Point without coordinates). */
+providerSchema.pre('save', function clearInvalidLocation() {
+  const loc = this.location;
+  if (loc && typeof loc === 'object' && (!Array.isArray(loc.coordinates) || loc.coordinates.length !== 2)) {
+    this.set('location', undefined);
+  }
+});
 
 providerSchema.index({ location: '2dsphere' }, { sparse: true });
 

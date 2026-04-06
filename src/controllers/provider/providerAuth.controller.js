@@ -7,6 +7,7 @@ import { ServiceSubcategory } from '../../models/ServiceSubcategory.model.js';
 import { sendOtpEmail } from '../../utils/emailService.js';
 import { signToken } from '../../utils/jwt.js';
 import { generateNumericOtp } from '../../utils/otp.js';
+import { absoluteUrlForWebPath, webPathFromMulterFile } from '../../utils/publicFileUrl.js';
 
 const SALT_ROUNDS = 10;
 const OTP_TTL_MS = 10 * 60 * 1000;
@@ -59,12 +60,31 @@ function documentsPresent(p) {
   );
 }
 
+/** Apply multipart files from multer (field names: facePhoto, idCardFront, idCardBack, certificates). */
+function applyProviderUploadedFiles(req, provider) {
+  const files = req.files;
+  if (!files) return;
+  if (files.facePhoto?.[0]) {
+    provider.facePhoto = absoluteUrlForWebPath(req, webPathFromMulterFile(files.facePhoto[0]));
+  }
+  if (files.idCardFront?.[0]) {
+    provider.idCardFront = absoluteUrlForWebPath(req, webPathFromMulterFile(files.idCardFront[0]));
+  }
+  if (files.idCardBack?.[0]) {
+    provider.idCardBack = absoluteUrlForWebPath(req, webPathFromMulterFile(files.idCardBack[0]));
+  }
+  if (files.certificates?.length) {
+    const urls = files.certificates.map((f) => absoluteUrlForWebPath(req, webPathFromMulterFile(f)));
+    provider.certificates = [...new Set([...provider.certificates.map(String), ...urls])].filter(Boolean);
+  }
+}
+
 function profileCompleteFields(p) {
   const locOk = p.location?.coordinates?.length === 2;
   const genderOk = p.gender && p.gender !== '';
   const dobOk = p.dob instanceof Date && !Number.isNaN(p.dob.getTime());
-  const catOk = !!p.serviceCategory;
-  const subsOk = Array.isArray(p.serviceSubcategories) && p.serviceSubcategories.length > 0;
+  // const catOk = !!p.serviceCategory;
+  // const subsOk = Array.isArray(p.serviceSubcategories) && p.serviceSubcategories.length > 0;
   return (
     isNonEmptyString(p.fullName) &&
     isNonEmptyString(p.permanentAddress) &&
@@ -73,9 +93,9 @@ function profileCompleteFields(p) {
     isNonEmptyString(p.country) &&
     locOk &&
     genderOk &&
-    dobOk &&
-    catOk &&
-    subsOk
+    dobOk 
+    // catOk &&
+    // subsOk
   );
 }
 
@@ -294,7 +314,13 @@ export async function login(req, res) {
       return badRequest(res, 'Email and password are required.');
     }
 
-    const user = await User.findOne({ email, role: 'provider' }).select('+password');
+    const user = await User.findOne({ email, role: 'provider' }).select('+password').populate({
+      path: 'providerProfile',
+      populate: [
+        { path: 'serviceCategory', select: 'name slug icon isActive' },
+        { path: 'serviceSubcategories', select: 'name icon isActive serviceCategory' },
+      ],
+    });
 
     if (!user) {
       return res.status(401).json({ success: false, message: 'Invalid email or password.' });
@@ -358,7 +384,7 @@ export async function me(req, res) {
  * Body: fullName, permanentAddress, city, state, country, lat, lng, gender, dob,
  *       serviceCategory, serviceSubcategories (each sub must belong to the selected category),
  *       isDocumentCompleted,
- *       facePhoto, idCardFront, idCardBack, certificates (array of URLs).
+ *       facePhoto, idCardFront, idCardBack, certificates (array of URLs), and/or the same names as multipart files (saved on server under /uploads/providers/<userId>/).
  */
 export async function updateProfile(req, res) {
   try {
@@ -424,17 +450,24 @@ export async function updateProfile(req, res) {
       provider.certificates = raw.map((x) => String(x || '').trim()).filter(Boolean);
     }
 
+    applyProviderUploadedFiles(req, provider);
+
+    const f = req.files;
     const docTouched =
       req.body.facePhoto !== undefined ||
       req.body.idCardFront !== undefined ||
       req.body.idCardBack !== undefined ||
-      req.body.certificates !== undefined;
+      req.body.certificates !== undefined ||
+      Boolean(f?.facePhoto?.length) ||
+      Boolean(f?.idCardFront?.length) ||
+      Boolean(f?.idCardBack?.length) ||
+      Boolean(f?.certificates?.length);
 
     if (req.body.isDocumentCompleted !== undefined) {
       if (req.body.isDocumentCompleted === true && !documentsPresent(provider)) {
         return badRequest(
           res,
-          'Provide facePhoto, idCardFront, idCardBack, and at least one certificate URL before marking documents complete.',
+          'Provide facePhoto, idCardFront, idCardBack, and at least one certificate (URL or uploaded file) before marking documents complete.',
         );
       }
       provider.isDocumentCompleted = Boolean(req.body.isDocumentCompleted);

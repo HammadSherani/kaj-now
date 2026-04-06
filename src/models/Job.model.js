@@ -12,8 +12,8 @@ const jobSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
-    customer: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    service: { type: mongoose.Schema.Types.ObjectId, ref: 'Service' },
+    customer: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    service: { type: mongoose.Schema.Types.ObjectId, ref: 'Service', required: true },
     status: {
       type: String,
       enum: ['pending', 'in_progress', 'completed', 'cancelled'],
@@ -25,18 +25,22 @@ const jobSchema = new mongoose.Schema(
     currency: { type: String, default: 'PKR', trim: true },
     completedAt: { type: Date },
     title: { type: String, trim: true, default: '' },
+    /** Payment status */
+    paymentStatus: {
+      type: String,
+      enum: ['pending', 'paid', 'refunded'],
+      default: 'pending',
+      index: true,
+    },
+    /** Job description/details */
+    description: { type: String, trim: true, default: '' },
+    /** Scheduled date/time for the job */
+    scheduledAt: { type: Date },
   },
   { timestamps: true }
 );
 
 jobSchema.index({ provider: 1, status: 1 });
 jobSchema.index({ provider: 1, completedAt: 1 });
-
-jobSchema.pre('save', function jobCompletedAt(next) {
-  if (this.isModified('status') && this.status === 'completed' && !this.completedAt) {
-    this.completedAt = new Date();
-  }
-  next();
-});
 
 export const Job = mongoose.models.Job || mongoose.model('Job', jobSchema);
