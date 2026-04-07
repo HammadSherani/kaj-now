@@ -93,7 +93,7 @@ function profileCompleteFields(p) {
     isNonEmptyString(p.country) &&
     locOk &&
     genderOk &&
-    dobOk 
+    dobOk
     // catOk &&
     // subsOk
   );
@@ -334,7 +334,7 @@ export async function login(req, res) {
       });
     }
 
-    if (['blocked', 'suspended'].includes(user.status)) {
+    if (['blocked', 'suspended', 'pending'].includes(user.status)) {
       return res.status(403).json({ success: false, message: 'Account is not active.' });
     }
 
@@ -392,7 +392,7 @@ export async function updateProfile(req, res) {
     if (!provider) {
       return res.status(404).json({ success: false, message: 'Provider profile not found.' });
     }
-    console.log(provider,req.user._id)
+    console.log(provider, req.user._id)
 
     const user = await User.findById(req.user._id);
     if (!user) {
