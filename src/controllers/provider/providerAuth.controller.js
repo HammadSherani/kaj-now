@@ -237,7 +237,7 @@ export async function verifyEmail(req, res) {
     user.emailOTP = undefined;
     user.otpExpiry = undefined;
     user.otpAttempts = 0;
-    user.status = 'approved';
+    // user.status = 'approved';
     await user.save();
 
     const token = signToken(user._id, user.role);
@@ -392,6 +392,7 @@ export async function updateProfile(req, res) {
     if (!provider) {
       return res.status(404).json({ success: false, message: 'Provider profile not found.' });
     }
+    console.log(provider,req.user._id)
 
     const user = await User.findById(req.user._id);
     if (!user) {
