@@ -62,7 +62,7 @@ export async function getAllWithdrawals(req, res) {
 export async function processWithdrawal(req, res) {
   try {
     const { withdrawalId } = req.params;
-    const { adminNotes } = req.body;
+    // const { adminNotes } = req.body;
 
     if (!mongoose.Types.ObjectId.isValid(withdrawalId)) {
       return res.status(400).json({ success: false, message: 'Invalid withdrawal ID.' });
@@ -78,10 +78,13 @@ export async function processWithdrawal(req, res) {
     }
 
     withdrawal.status = 'processing';
-    withdrawal.processedAt = new Date();
-    if (adminNotes) {
-      withdrawal.adminNotes = adminNotes;
-    }
+    // withdrawal.processedAt = new Date();
+    // if (adminNotes) {
+    //   withdrawal.adminNotes = adminNotes;
+    // }else{
+    //   withdrawal.adminNotes = 'Withdrawal request is being processed.';
+    // }
+    withdrawal.adminNotes = 'Withdrawal request is being processed.';
     await withdrawal.save();
 
     return res.json({

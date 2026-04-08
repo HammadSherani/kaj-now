@@ -42,6 +42,14 @@ export async function getMyJobs(req, res) {
     return res.json({
       success: true,
       data: {
+        provider: {
+          _id: provider._id,
+          fullName: provider.fullName,
+          location: provider.location || null,
+          city: provider.city,
+          state: provider.state,
+          country: provider.country,
+        },
         jobs: jobs.map(job => ({
           _id: job._id,
           title: job.title,
@@ -52,6 +60,8 @@ export async function getMyJobs(req, res) {
           paymentStatus: job.paymentStatus,
           scheduledAt: job.scheduledAt,
           completedAt: job.completedAt,
+          serviceLocation: job.serviceLocation,
+          providerLocation: provider.location || null,
           createdAt: job.createdAt,
           service: {
             name: job.service?.name,
@@ -75,6 +85,64 @@ export async function getMyJobs(req, res) {
   } catch (err) {
     console.error('getMyJobs:', err);
     return res.status(500).json({ success: false, message: err.message || 'Failed to load jobs.' });
+  }
+}
+
+/**
+ * Accept a job booking (provider accepts the service from customer)
+ */
+export async function acceptJob(req, res) {
+  try {
+    const { jobId } = req.params;
+    const providerId = req.user._id;
+
+    // Find provider profile
+    const Provider = mongoose.model('Provider');
+    const provider = await Provider.findOne({ userId: providerId });
+    if (!provider) {
+      return res.status(404).json({ success: false, message: 'Provider profile not found.' });
+    }
+
+    const job = await Job.findOne({ _id: jobId, provider: provider._id });
+    if (!job) {
+      return res.status(404).json({ success: false, message: 'Job not found.' });
+    }
+
+    // Job must be pending to accept
+    if (job.status !== 'pending') {
+      return res.status(400).json({ 
+        success: false, 
+        message: `Cannot accept job with status '${job.status}'. Job must be in pending state.` 
+      });
+    }
+
+    job.status = 'accepted';
+    job.acceptedAt = new Date();
+    await job.save();
+
+    await job.populate([
+      { path: 'service', select: 'name price durationMinutes' },
+      { path: 'customer', select: 'name email phone' }
+    ]);
+
+    return res.json({
+      success: true,
+      message: 'Job accepted successfully. You can now start the job.',
+      data: {
+        job: {
+          _id: job._id,
+          title: job.title,
+          status: job.status,
+          acceptedAt: job.acceptedAt,
+          amount: job.amount,
+          customer: job.customer,
+          service: job.service,
+        }
+      },
+    });
+  } catch (err) {
+    console.error('acceptJob:', err);
+    return res.status(500).json({ success: false, message: err.message || 'Failed to accept job.' });
   }
 }
 
@@ -104,8 +172,8 @@ export async function updateJobStatus(req, res) {
     }
 
     // Validate status transitions
-    if (status === 'in_progress' && job.status !== 'pending') {
-      return res.status(400).json({ success: false, message: 'Job must be pending to start.' });
+    if (status === 'in_progress' && job.status !== 'accepted') {
+      return res.status(400).json({ success: false, message: 'Job must be accepted first to start. Please accept the job from pending state.' });
     }
 
     if (status === 'completed' && job.status !== 'in_progress') {
@@ -306,6 +374,20 @@ export async function getJobDetails(req, res) {
         completed: job.completedAt,
       },
 
+      // Service location (where to provide the service)
+      serviceLocation: job.serviceLocation ? {
+        name: job.serviceLocation.name,
+        phoneNumber: job.serviceLocation.phoneNumber,
+        houseNumber: job.serviceLocation.houseNumber,
+        address: job.serviceLocation.address,
+        city: job.serviceLocation.city,
+        postalCode: job.serviceLocation.postalCode,
+        coordinates: {
+          latitude: job.serviceLocation.coordinates.latitude,
+          longitude: job.serviceLocation.coordinates.longitude,
+        },
+      } : null,
+
       // Payment info
       payment: {
         amount: job.amount,
@@ -336,7 +418,7 @@ export async function requestWithdrawal(req, res) {
       return res.status(400).json({ success: false, message: 'Valid amount is required.' });
     }
 
-    if (!paymentMethod || !['bank_transfer', 'easypaisa', 'jazzcash', 'other'].includes(paymentMethod)) {
+    if (!paymentMethod || !['bank_transfer', 'other'].includes(paymentMethod)) {
       return res.status(400).json({ success: false, message: 'Valid payment method is required.' });
     }
 

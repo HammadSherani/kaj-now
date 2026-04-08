@@ -155,11 +155,35 @@ export async function getServiceDetails(req, res) {
 export async function createJob(req, res) {
   try {
     const { serviceId } = req.params;
-    const { description, scheduledAt, stripeToken } = req.body; // stripeToken for payment
+    const { description, scheduledAt, stripeToken, serviceLocation } = req.body; // serviceLocation: { name, phoneNumber, houseNumber, address, city, postalCode, coordinates: { latitude, longitude } }
     const customerId = req.user._id;
 
     if (!mongoose.Types.ObjectId.isValid(serviceId)) {
       return res.status(400).json({ success: false, message: 'Invalid service ID.' });
+    }
+
+    // Validate service location details
+    if (!serviceLocation) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Service location details are required. Provide: name, phoneNumber, houseNumber, address, city, postalCode, and coordinates (latitude, longitude).' 
+      });
+    }
+
+    const { name, phoneNumber, houseNumber, address, city, postalCode, coordinates } = serviceLocation;
+
+    if (!name || !phoneNumber || !houseNumber || !address || !city || !postalCode) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Missing location details. Please provide name, phoneNumber, houseNumber, address, city, and postalCode.' 
+      });
+    }
+
+    if (!coordinates || typeof coordinates.latitude !== 'number' || typeof coordinates.longitude !== 'number') {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Invalid coordinates. Please provide latitude and longitude as numbers.' 
+      });
     }
 
     // Get service details
@@ -192,6 +216,18 @@ export async function createJob(req, res) {
       scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
       paymentStatus: 'paid', // Payment processed
       status: 'pending',
+      serviceLocation: {
+        name: name.trim(),
+        phoneNumber: phoneNumber.trim(),
+        houseNumber: houseNumber.trim(),
+        address: address.trim(),
+        city: city.trim(),
+        postalCode: postalCode.trim(),
+        coordinates: {
+          latitude: coordinates.latitude,
+          longitude: coordinates.longitude,
+        },
+      },
     });
 
     await job.save();
@@ -220,6 +256,7 @@ export async function createJob(req, res) {
           status: job.status,
           paymentStatus: job.paymentStatus,
           scheduledAt: job.scheduledAt,
+          serviceLocation: job.serviceLocation,
           createdAt: job.createdAt,
         },
         service: {
@@ -258,7 +295,7 @@ export async function getMyJobs(req, res) {
       })
       .populate({
         path: 'provider',
-        select: 'fullName',
+        select: 'fullName location',
         populate: { path: 'userId', select: 'name' }
       })
       .sort({ createdAt: -1 })
@@ -279,6 +316,7 @@ export async function getMyJobs(req, res) {
           paymentStatus: job.paymentStatus,
           scheduledAt: job.scheduledAt,
           completedAt: job.completedAt,
+          serviceLocation: job.serviceLocation,
           createdAt: job.createdAt,
           service: {
             name: job.service?.name,
@@ -287,6 +325,7 @@ export async function getMyJobs(req, res) {
           },
           provider: {
             name: job.provider?.fullName || job.provider?.userId?.name,
+            location: job.provider?.location || null,
           }
         })),
         pagination: {

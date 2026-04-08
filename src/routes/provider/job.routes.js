@@ -2,6 +2,7 @@ import { Router } from 'express';
 import {
   getMyJobs,
   updateJobStatus,
+  acceptJob,
   getWallet,
   requestWithdrawal,
   getMyWithdrawals,
@@ -22,7 +23,10 @@ router.get('/jobs', getMyJobs);
 // Get detailed job information
 router.get('/jobs/:jobId', getJobDetails);
 
-// Update job status
+// Accept job booking from pending state
+router.patch('/jobs/:jobId/accept', acceptJob);
+
+// Start job (change from accepted to in_progress)
 router.patch('/jobs/:jobId/status', updateJobStatus);
 
 // Wallet routes
